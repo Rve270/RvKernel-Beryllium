@@ -35,6 +35,20 @@
 
 #include "smpboot.h"
 
+/*
+ * This assumes that half of the CPUs are little and that they have lower
+ * CPU numbers than the big CPUs (e.g., on an 8-core system, CPUs 0-3 would be
+ * little and CPUs 4-7 would be big).
+ */
+#define LITTLE_CPU_MASK	((1UL << (NR_CPUS / 2)) - 1)
+#define BIG_CPU_MASK	(((1UL << NR_CPUS) - 1) & ~LITTLE_CPU_MASK)
+static const unsigned long little_cluster_cpus = LITTLE_CPU_MASK;
+const struct cpumask *const cpu_lp_mask = to_cpumask(&little_cluster_cpus);
+EXPORT_SYMBOL(cpu_lp_mask);
+static const unsigned long big_cluster_cpus = BIG_CPU_MASK;
+const struct cpumask *const cpu_perf_mask = to_cpumask(&big_cluster_cpus);
+EXPORT_SYMBOL(cpu_perf_mask);
+
 /**
  * cpuhp_cpu_state - Per cpu hotplug state storage
  * @state:	The current cpu state
@@ -1098,7 +1112,14 @@ static int cpu_down_maps_locked(unsigned int cpu, enum cpuhp_state target)
 
 static int do_cpu_down(unsigned int cpu, enum cpuhp_state target)
 {
+	struct cpumask newmask;
 	int err;
+
+	cpumask_andnot(&newmask, cpu_online_mask, cpumask_of(cpu));
+	/* One big cluster CPU and one little cluster CPU must remain online */
+	if (!cpumask_intersects(&newmask, cpu_perf_mask) ||
+		!cpumask_intersects(&newmask, cpu_lp_mask))
+		return -EINVAL;
 
 	cpu_maps_update_begin();
 	err = cpu_down_maps_locked(cpu, target);
@@ -1306,6 +1327,7 @@ int freeze_secondary_cpus(int primary)
 {
 	int cpu, error = 0;
 
+	unaffine_perf_irqs();
 	cpu_maps_update_begin();
 	if (!cpu_online(primary))
 		primary = cpumask_first(cpu_online_mask);
@@ -1377,7 +1399,7 @@ void enable_nonboot_cpus(void)
 			pr_debug("CPU%d is up\n", cpu);
 			cpu_device = get_cpu_device(cpu);
 			if (!cpu_device)
-				pr_err("%s: failed to get cpu%d device\n",
+				pr_debug("%s: failed to get cpu%d device\n",
 				       __func__, cpu);
 			else
 				kobject_uevent(&cpu_device->kobj, KOBJ_ONLINE);
@@ -1391,6 +1413,7 @@ void enable_nonboot_cpus(void)
 	cpumask_clear(frozen_cpus);
 out:
 	cpu_maps_update_done();
+	reaffine_perf_irqs();
 }
 
 static int __init alloc_frozen_cpus(void)

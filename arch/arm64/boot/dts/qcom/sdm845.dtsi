@@ -500,6 +500,18 @@
 				compatible = "android,vbmeta";
 				parts = "vbmeta,boot,system,vendor,dtbo";
 			};
+
+			fstab {
+				compatible = "android,fstab";
+				vendor {
+					compatible = "android,vendor";
+					dev = "/dev/block/platform/soc/1d84000.ufshc/by-name/vendor";
+					type = "ext4";
+					mnt_flags = "ro,barrier=1,discard";
+					fsmgr_flags = "wait,slotselect,avb";
+					status = "ok";
+				};
+			};
 		};
 	};
 
@@ -3832,7 +3844,7 @@
 			trips {
 				active-config {
 					temperature = <95000>;
-					hysteresis = <30000>;
+					hysteresis = <3000>;
 					type = "passive";
 				};
 			};
@@ -3848,7 +3860,7 @@
 			trips {
 				active-config {
 					temperature = <95000>;
-					hysteresis = <30000>;
+					hysteresis = <3000>;
 					type = "passive";
 				};
 			};
@@ -4030,20 +4042,26 @@
 };
 
 &clock_cpucc {
-	lmh_dcvs0: qcom,limits-dcvs@0 {
+	lmh_dcvs0: qcom,limits-dcvs@17d78800 {
 		compatible = "qcom,msm-hw-limits";
 		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
 		qcom,affinity = <0>;
+		reg = <0x17d78800 0x1000>,
+			<0x17d43000 0x1000>;
 		#thermal-sensor-cells = <0>;
+		qcom,plat-mitigation-disable;
+		qcom,legacy-lmh-enable;
 	};
 
-	lmh_dcvs1: qcom,limits-dcvs@1 {
+	lmh_dcvs1: qcom,limits-dcvs@17d70800 {
 		compatible = "qcom,msm-hw-limits";
 		interrupts = <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>;
 		qcom,affinity = <1>;
+		reg = <0x17d70800 0x1000>,
+			<0x17d45800 0x1000>;
 		#thermal-sensor-cells = <0>;
-		isens_vref-supply = <&pm8998_l1_ao>;
-		isens-vref-settings = <880000 880000 20000>;
+		qcom,plat-mitigation-disable;
+		qcom,legacy-lmh-enable;
 	};
 
 	wil6210: qcom,wil6210 {

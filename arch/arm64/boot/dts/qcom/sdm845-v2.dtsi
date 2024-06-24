@@ -255,8 +255,7 @@
 
 &devfreq_l3lat_0 {
 	qcom,core-dev-table =
-		<  300000  300000000 >,
-		<  480000  403200000 >,
+		<  300000  403200000 >,
 		<  652800  480000000 >,
 		<  748800  576000000 >,
 		<  902400  652800000 >,
@@ -622,6 +621,13 @@
 
 		qcom,gpu-pwrlevel@7 {
 			reg = <7>;
+			qcom,gpu-freq = <160000000>;
+			qcom,bus-freq = <3>;
+			qcom,bus-min = <2>;
+			qcom,bus-max = <4>;
+		};
+                qcom,gpu-pwrlevel@8 {
+			reg = <8>;
 			qcom,gpu-freq = <0>;
 			qcom,bus-freq = <0>;
 			qcom,bus-min = <0>;

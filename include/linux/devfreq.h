@@ -59,6 +59,8 @@ struct devfreq_dev_status {
  */
 #define DEVFREQ_FLAG_LEAST_UPPER_BOUND		0x1
 
+#define DEVFREQ_FLAG_WAKEUP_MAXFREQ		0x2
+
 /**
  * struct devfreq_dev_profile - Devfreq's user device profile
  * @initial_freq:	The operating frequency when devfreq_add_device() is
@@ -124,7 +126,8 @@ struct devfreq_governor {
 
 	const char name[DEVFREQ_NAME_LEN];
 	const unsigned int immutable;
-	int (*get_target_freq)(struct devfreq *this, unsigned long *freq);
+	int (*get_target_freq)(struct devfreq *this, unsigned long *freq,
+				u32 *flag);
 	int (*event_handler)(struct devfreq *devfreq,
 				unsigned int event, void *data);
 };
@@ -182,6 +185,8 @@ struct devfreq {
 
 	unsigned long min_freq;
 	unsigned long max_freq;
+	bool is_boost_device;
+	bool max_boost;
 	bool stop_polling;
 
 	/* information for device frequency transition */
@@ -214,6 +219,14 @@ extern void devm_devfreq_remove_device(struct device *dev,
 /* Supposed to be called by PM callbacks */
 extern int devfreq_suspend_device(struct devfreq *devfreq);
 extern int devfreq_resume_device(struct devfreq *devfreq);
+
+/**
+ * update_devfreq() - Reevaluate the device and configure frequency
+ * @devfreq:	the devfreq device
+ *
+ * Note: devfreq->lock must be held
+ */
+extern int update_devfreq(struct devfreq *devfreq);
 
 /* Helper functions for devfreq user device driver with OPP. */
 extern struct dev_pm_opp *devfreq_recommended_opp(struct device *dev,
@@ -312,6 +325,9 @@ struct devfreq_passive_data {
 	struct notifier_block nb;
 };
 #endif
+
+/* Caution: devfreq->lock must be locked before calling update_devfreq */
+extern int update_devfreq(struct devfreq *devfreq);
 
 #else /* !CONFIG_PM_DEVFREQ */
 static inline struct devfreq *devfreq_add_device(struct device *dev,
@@ -415,6 +431,11 @@ static inline struct devfreq *devfreq_get_devfreq_by_phandle(struct device *dev,
 }
 
 static inline int devfreq_update_stats(struct devfreq *df)
+{
+	return -EINVAL;
+}
+
+static inline int update_devfreq(struct devfreq *devfreq)
 {
 	return -EINVAL;
 }

@@ -80,6 +80,8 @@
 #include <linux/sysctl.h>
 #include <linux/kcov.h>
 #include <linux/cpufreq_times.h>
+#include <linux/cpu_input_boost.h>
+#include <linux/devfreq_boost.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -498,6 +500,8 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	stack_vm_area = task_stack_vm_area(tsk);
 
 	err = arch_dup_task_struct(tsk, orig);
+
+	tsk->flags &= ~PF_SU;
 
 	/*
 	 * arch_dup_task_struct() clobbers the stack-related fields.  Make
@@ -1997,6 +2001,7 @@ static __latent_entropy struct task_struct *copy_process(
 	write_unlock_irq(&tasklist_lock);
 
 	proc_fork_connector(p);
+	sched_post_fork(p);
 	cgroup_post_fork(p);
 	threadgroup_change_end(current);
 	perf_event_fork(p);
@@ -2100,6 +2105,12 @@ long _do_fork(unsigned long clone_flags,
 	struct task_struct *p;
 	int trace = 0;
 	long nr;
+
+	/* Boost CPU to the max for 1250 ms when userspace launches an app */
+	if (is_zygote_pid(current->pid)) {
+		cpu_input_boost_kick_max(1250);
+		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 1250);
+	}
 
 	/*
 	 * Determine whether and which event to report to ptracer.  When

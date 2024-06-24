@@ -1,5 +1,5 @@
 /* Copyright (c) 2016-2019 The Linux Foundation. All rights reserved.
- * Copyright (C) 2019 XiaoMi, Inc.
+ * Copyright (C) 2018 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,7 +37,7 @@ static struct smb_params v1_params = {
 		.name	= "fast charge current",
 		.reg	= FAST_CHARGE_CURRENT_CFG_REG,
 		.min_u	= 0,
-		.max_u	= 3300000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.fv			= {
@@ -51,7 +51,7 @@ static struct smb_params v1_params = {
 		.name	= "usb input current limit",
 		.reg	= USBIN_CURRENT_LIMIT_CFG_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.icl_stat		= {
@@ -79,7 +79,7 @@ static struct smb_params v1_params = {
 		.name	= "dc icl PT <8V",
 		.reg	= ZIN_ICL_PT_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.dc_icl_pt_hv		= {
@@ -93,35 +93,35 @@ static struct smb_params v1_params = {
 		.name	= "dc icl div2 <5.5V",
 		.reg	= ZIN_ICL_LV_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.dc_icl_div2_mid_lv	= {
 		.name	= "dc icl div2 5.5-6.5V",
 		.reg	= ZIN_ICL_MID_LV_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.dc_icl_div2_mid_hv	= {
 		.name	= "dc icl div2 6.5-8.0V",
 		.reg	= ZIN_ICL_MID_HV_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.dc_icl_div2_hv		= {
 		.name	= "dc icl div2 >8.0V",
 		.reg	= ZIN_ICL_HV_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.jeita_cc_comp		= {
 		.name	= "jeita fcc reduction",
 		.reg	= JEITA_CCCOMP_CFG_REG,
 		.min_u	= 0,
-		.max_u	= 3000000,
+		.max_u	= 4000000,
 		.step_u	= 25000,
 	},
 	.jeita_fv_comp		= {
@@ -191,7 +191,7 @@ struct smb2 {
 	bool			bad_part;
 };
 
-static int __debug_mask;
+static int __debug_mask = PR_OEM | PR_MISC;
 module_param_named(
 	debug_mask, __debug_mask, int, 0600
 );
@@ -213,8 +213,8 @@ module_param_named(
 #define MICRO_1P5A		1500000
 #define MICRO_P1A		100000
 #define OTG_DEFAULT_DEGLITCH_TIME_MS	50
-#define MAX_DCP_ICL_UA  		1800000
-#define DEFAULT_CRITICAL_JEITA_CCOMP 	2975000
+#define MAX_DCP_ICL_UA  1800000
+#define DEFAULT_CRITICAL_JEITA_CCOMP 2975000
 #define JEITA_SOFT_HOT_CC_COMP		1600000
 #define JEITA_SOFT_COOL_CC_COMP		2225000
 #define MIN_WD_BARK_TIME		16
@@ -546,7 +546,7 @@ static int smb2_usb_get_prop(struct power_supply *psy,
 			rc = smblib_get_prop_usb_present(chg, val);
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
-		if (chg->report_usb_absent) {
+		if (chg->report_usb_absent){
 			val->intval = 0;
 			break;
 		}
@@ -823,7 +823,7 @@ static int smb2_usb_port_get_prop(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_TYPE_USB;
 		break;
 	case POWER_SUPPLY_PROP_ONLINE:
-		if (chg->report_usb_absent) {
+		if (chg->report_usb_absent){
 			val->intval = 0;
 			break;
 		}
@@ -1202,7 +1202,7 @@ static int smb2_get_prop_wireless_signal(struct smb_charger *chg,
 	return rc;
 }
 
-static int smb2_get_prop_wirless_type(struct smb_charger *chg,
+static int smb2_get_prop_wireless_type(struct smb_charger *chg,
 				union power_supply_propval *val)
 {
 	chg->idtp_psy = power_supply_get_by_name("idt");
@@ -1213,9 +1213,9 @@ static int smb2_get_prop_wirless_type(struct smb_charger *chg,
 	return 1;
 }
 
-/*************************
+/*****************************
  * WIRELESS PSY REGISTRATION *
- *************************/
+ *****************************/
 
 static enum power_supply_property smb2_wireless_props[] = {
 	POWER_SUPPLY_PROP_WIRELESS_VERSION,
@@ -1265,7 +1265,7 @@ static int smb2_wireless_get_prop(struct power_supply *psy,
 		val->intval = 1;
 		break;
 	case POWER_SUPPLY_PROP_TX_ADAPTER:
-		smb2_get_prop_wirless_type(chg, val);
+		smb2_get_prop_wireless_type(chg, val);
 		break;
 	default:
 		return -EINVAL;
@@ -1323,6 +1323,7 @@ static int smb2_init_wireless_psy(struct smb2 *chip)
  *************************/
 
 static enum power_supply_property smb2_batt_props[] = {
+    POWER_SUPPLY_PROP_CHARGING_ENABLED,
 	POWER_SUPPLY_PROP_INPUT_SUSPEND,
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -1379,6 +1380,9 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		rc = smblib_get_prop_batt_present(chg, val);
+		break;
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		val->intval = !get_effective_result(chg->chg_disable_votable);
 		break;
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_get_prop_input_suspend(chg, val);
@@ -1486,8 +1490,8 @@ static int smb2_batt_get_prop(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		rc = smblib_get_prop_from_bms(chg, psp, val);
-	/*	if (!rc)
-			val->intval *= (-1);*/
+		if (!rc)
+			val->intval *= (-1);
 		break;
 	case POWER_SUPPLY_PROP_FCC_STEPPER_ENABLE:
 		val->intval = chg->fcc_stepper_enable;
@@ -1515,6 +1519,9 @@ static int smb2_batt_set_prop(struct power_supply *psy,
 	switch (prop) {
 	case POWER_SUPPLY_PROP_STATUS:
 		rc = smblib_set_prop_batt_status(chg, val);
+		break;
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
+		vote(chg->chg_disable_votable, USER_VOTER, !!!val->intval, 0);
 		break;
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 		rc = smblib_set_prop_input_suspend(chg, val);
@@ -1611,6 +1618,7 @@ static int smb2_batt_prop_is_writeable(struct power_supply *psy,
 {
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
+	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
 	case POWER_SUPPLY_PROP_INPUT_SUSPEND:
 	case POWER_SUPPLY_PROP_SYSTEM_TEMP_LEVEL:
 	case POWER_SUPPLY_PROP_CAPACITY:
@@ -1834,8 +1842,7 @@ static int smb2_configure_typec(struct smb_charger *chg)
 	 * over-current happens
 	 */
 	rc = smblib_masked_write(chg, TYPE_C_CFG_REG,
-			FACTORY_MODE_DETECTION_EN_BIT
-			| VCONN_OC_CFG_BIT, 0);
+			FACTORY_MODE_DETECTION_EN_BIT | VCONN_OC_CFG_BIT, 0);
 	if (rc < 0) {
 		dev_err(chg->dev, "Couldn't configure Type-C rc=%d\n", rc);
 		return rc;
@@ -2070,6 +2077,16 @@ static int smb2_init_hw(struct smb2 *chip)
 			"Couldn't configure QC3.0 to 6.6V rc=%d\n", rc);
 		return rc;
 	}
+/*
+	rc = smblib_masked_write(chg, USBIN_ADAPTER_ALLOW_CFG_REG,
+				 USBIN_ADAPTER_ALLOW_MASK,
+				 USBIN_ADAPTER_ALLOW_5V_TO_9V);
+	if (rc < 0) {
+		dev_err(chg->dev,
+			"Couldn't configure QC to 9V rc=%d\n", rc);
+		return rc;
+	}
+*/
 
 	/*
 	 * AICL configuration:

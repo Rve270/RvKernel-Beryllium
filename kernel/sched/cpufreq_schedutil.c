@@ -210,6 +210,11 @@ static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 	*max = cfs_max;
 
 	*util = boosted_cpu_util(cpu, &loadcpu->walt_load);
+	
+#ifdef CONFIG_UCLAMP_TASK
+	*util = uclamp_util_with(rq, *util, NULL);
+	*util = min(*max, *util);
+#endif
 }
 
 static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
@@ -574,6 +579,12 @@ static ssize_t up_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
 
+	if (task_is_booster(current))
+		return count;
+
+	/* Don't let userspace change this */
+	return count;
+
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
 
@@ -593,6 +604,12 @@ static ssize_t down_rate_limit_us_store(struct gov_attr_set *attr_set,
 	struct sugov_tunables *tunables = to_sugov_tunables(attr_set);
 	struct sugov_policy *sg_policy;
 	unsigned int rate_limit_us;
+
+	if (task_is_booster(current))
+		return count;
+
+	/* Don't let userspace change this */
+	return count;
 
 	if (kstrtouint(buf, 10, &rate_limit_us))
 		return -EINVAL;
@@ -715,17 +732,9 @@ static struct attribute *sugov_attributes[] = {
 	NULL
 };
 
-static void sugov_tunables_free(struct kobject *kobj)
-{
-	struct gov_attr_set *attr_set = container_of(kobj, struct gov_attr_set, kobj);
-
-	kfree(to_sugov_tunables(attr_set));
-}
-
 static struct kobj_type sugov_tunables_ktype = {
 	.default_attrs = sugov_attributes,
 	.sysfs_ops = &governor_sysfs_ops,
-	.release = &sugov_tunables_free,
 };
 
 /********************** cpufreq governor interface *********************/
@@ -838,7 +847,7 @@ static void sugov_tunables_save(struct cpufreq_policy *policy,
 	cached->down_rate_limit_us = tunables->down_rate_limit_us;
 }
 
-static void sugov_clear_global_tunables(void)
+static void sugov_tunables_free(struct sugov_tunables *tunables)
 {
 	if (!have_governor_per_policy())
 		global_tunables = NULL;
@@ -912,6 +921,10 @@ static int sugov_init(struct cpufreq_policy *policy)
 	tunables->hispeed_load = DEFAULT_HISPEED_LOAD;
 	tunables->hispeed_freq = 0;
 
+	/* Hard-code some sane rate-limit values */
+	tunables->up_rate_limit_us = 10000;
+	tunables->down_rate_limit_us = 20000;
+
 	tunables->iowait_boost_enable = false;
 
 	policy->governor_data = sg_policy;
@@ -932,7 +945,7 @@ out:
 
 fail:
 	policy->governor_data = NULL;
-	sugov_clear_global_tunables();
+	sugov_tunables_free(tunables);
 
 stop_kthread:
 	sugov_kthread_stop(sg_policy);
@@ -961,7 +974,7 @@ static void sugov_exit(struct cpufreq_policy *policy)
 	policy->governor_data = NULL;
 	if (!count) {
 		sugov_tunables_save(policy, tunables);
-		sugov_clear_global_tunables();
+		sugov_tunables_free(tunables);
 	}
 
 	mutex_unlock(&global_tunables_lock);
